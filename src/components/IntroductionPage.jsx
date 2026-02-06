@@ -105,8 +105,8 @@ const IntroductionPage = ({ currentDate }) => {
         // Final reveal (7 Vachan): after 4 more seconds (22000ms total)
         timers.push(setTimeout(() => setFinalVisible(true), 22000));
 
-        // Show dates after final
-        timers.push(setTimeout(() => setShowDates(true), 24000));
+        // Show dates (Coming Up) AFTER all photo strips have appeared (Last strip at 45s)
+        timers.push(setTimeout(() => setShowDates(true), 48000));
 
         // Background collages fade in AFTER final message (25s)
         timers.push(setTimeout(() => setBackgroundCollageVisible(true), 25000));
