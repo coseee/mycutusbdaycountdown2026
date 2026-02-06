@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useDateTracker } from './hooks/useDateTracker';
 import Countdown from './components/Countdown';
 import ValentineQuestion from './components/ValentineQuestion';
-import { Heart, Sparkles } from 'lucide-react';
+import IntroductionPage from './components/IntroductionPage';
+import { Heart, Sparkles, Volume2, VolumeX } from 'lucide-react';
 
 // Floating Hearts Background - Memoized to prevent re-render repositioning
 const BackgroundHearts = () => {
@@ -42,6 +43,25 @@ const BackgroundHearts = () => {
 function App() {
   const { currentDate, isPreEvent, START_DATE } = useDateTracker();
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [hasAnsweredYes, setHasAnsweredYes] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const audioRef = useRef(null);
+
+  // Function to play background music
+  const playBackgroundMusic = () => {
+    if (audioRef.current) {
+      audioRef.current.volume = 0.3; // Soft volume
+      audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+    }
+  };
+
+  // Toggle mute
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
 
   // Check if unlock button should be available (on or after Feb 7th 12am)
   const canUnlock = currentDate >= START_DATE;
@@ -221,14 +241,17 @@ function App() {
               </button>
             )}
           </section>
-        ) : (
+        ) : !hasAnsweredYes ? (
           /* Valentine Question Experience */
           <ValentineQuestion
             onYesClick={() => {
-              // For now, show a celebration! Later we can add more content
-              alert('🎉 YAY! I knew you\'d say yes! Happy Valentine\'s Day, my love! 💖');
+              setHasAnsweredYes(true);
+              playBackgroundMusic();
             }}
           />
+        ) : (
+          /* Introduction Page - After saying Yes */
+          <IntroductionPage currentDate={currentDate} />
         )}
       </main>
 
@@ -241,6 +264,46 @@ function App() {
           {currentDate.toLocaleString()}
         </p>
       </footer>
+
+      {/* Background Music */}
+      <audio
+        ref={audioRef}
+        src="/mycutusbdaycountdown2026/music/background.mp3"
+        loop
+        preload="auto"
+      />
+
+      {/* Mute/Unmute Button - Only show after Yes */}
+      {hasAnsweredYes && (
+        <button
+          onClick={toggleMute}
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            width: '50px',
+            height: '50px',
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.9)',
+            border: '2px solid #e91e63',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 15px rgba(233, 30, 99, 0.3)',
+            transition: 'all 0.3s ease',
+            zIndex: 100,
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          {isMuted ? (
+            <VolumeX size={24} color="#e91e63" />
+          ) : (
+            <Volume2 size={24} color="#e91e63" />
+          )}
+        </button>
+      )}
 
     </div>
   );

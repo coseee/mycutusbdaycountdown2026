@@ -9,14 +9,16 @@ const ValentineQuestion = ({ onYesClick }) => {
     const [buttonsVisible, setButtonsVisible] = useState(false);
     const containerRef = useRef(null);
 
-    // Typewriter effect for the question (two parts)
-    const line1 = "Okay, here we go ✨Feb 7th✨, ofcourse the obligatory question...";
-    const line2 = "Will you be my Valentine cutu? 🥺";
+    // Typewriter effect for the question (three parts now with delay)
+    const line1 = "Before we start our countdown...";
+    const line2 = "Ek chota sa sawal";
+    const line3 = "Will you be my Valentine, cutu? 🥺";
 
     const [displayedLine1, setDisplayedLine1] = useState('');
     const [displayedLine2, setDisplayedLine2] = useState('');
+    const [displayedLine3, setDisplayedLine3] = useState('');
     const [charIndex, setCharIndex] = useState(0);
-    const [typingLine, setTypingLine] = useState(1); // 1 = first line, 2 = second line
+    const [typingLine, setTypingLine] = useState(1); // 1 = first line, 2 = second line, 3 = third line
 
     useEffect(() => {
         // Start typewriter after a short delay
@@ -49,10 +51,23 @@ const ValentineQuestion = ({ onYesClick }) => {
             }, 50);
             return () => clearTimeout(timer);
         } else if (typingLine === 2 && charIndex >= line2.length) {
+            // 5 SECOND PAUSE before the Valentine question
+            const pauseTimer = setTimeout(() => {
+                setTypingLine(3);
+                setCharIndex(0);
+            }, 5000); // 5 second delay here!
+            return () => clearTimeout(pauseTimer);
+        } else if (typingLine === 3 && charIndex < line3.length) {
+            const timer = setTimeout(() => {
+                setDisplayedLine3(line3.slice(0, charIndex + 1));
+                setCharIndex(charIndex + 1);
+            }, 50);
+            return () => clearTimeout(timer);
+        } else if (typingLine === 3 && charIndex >= line3.length) {
             // Show buttons after typing is complete
             setTimeout(() => setButtonsVisible(true), 300);
         }
-    }, [questionVisible, charIndex, typingLine, line1, line2]);
+    }, [questionVisible, charIndex, typingLine, line1, line2, line3]);
 
     // Move the No button to a random position (keep away from Yes button on left)
     const moveNoButton = () => {
@@ -163,7 +178,28 @@ const ValentineQuestion = ({ onYesClick }) => {
                         }}
                     >
                         {displayedLine2}
-                        {charIndex < line2.length && (
+                        {typingLine === 2 && charIndex < line2.length && (
+                            <span className="animate-pulse" style={{ opacity: 0.7 }}>|</span>
+                        )}
+                    </p>
+                )}
+
+                {/* Line 3 - The Valentine question */}
+                {displayedLine3 && (
+                    <p
+                        style={{
+                            fontFamily: "'Playfair Display', serif",
+                            fontSize: 'clamp(1.4rem, 3.5vw, 1.8rem)',
+                            color: '#e91e63',
+                            lineHeight: 1.6,
+                            margin: 0,
+                            marginTop: '0.5rem',
+                            fontWeight: 700,
+                            fontStyle: 'italic',
+                        }}
+                    >
+                        {displayedLine3}
+                        {typingLine === 3 && charIndex < line3.length && (
                             <span className="animate-pulse" style={{ opacity: 0.7 }}>|</span>
                         )}
                     </p>
