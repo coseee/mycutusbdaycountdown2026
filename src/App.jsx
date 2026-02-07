@@ -1,9 +1,10 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useDateTracker } from './hooks/useDateTracker';
 import Countdown from './components/Countdown';
 import ValentineQuestion from './components/ValentineQuestion';
 import IntroductionPage from './components/IntroductionPage';
-import { Heart, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import Promise1Growth from './components/Promise1Growth';
+import { Heart, Sparkles, Volume2, VolumeX, ArrowLeft } from 'lucide-react';
 
 // Floating Hearts Background - Memoized to prevent re-render repositioning
 const BackgroundHearts = () => {
@@ -42,10 +43,28 @@ const BackgroundHearts = () => {
 
 function App() {
   const { currentDate, isPreEvent, START_DATE } = useDateTracker();
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [hasAnsweredYes, setHasAnsweredYes] = useState(false);
+
+  // Check for direct promise URL parameter (e.g., ?promise=1)
+  const getInitialPromise = () => {
+    const params = new URLSearchParams(window.location.search);
+    const promiseParam = params.get('promise');
+    if (promiseParam) {
+      return parseInt(promiseParam, 10);
+    }
+    return null;
+  };
+
+  const initialPromise = getInitialPromise();
+
+  // If promise parameter exists, auto-skip to that promise
+  // DEFAULT TO OPEN: User requests direct access to Intro Page
+  const [isUnlocked, setIsUnlocked] = useState(true);
+  const [hasAnsweredYes, setHasAnsweredYes] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
+  const activePromiseState = useState(initialPromise);
+  const [activePromise, setActivePromise] = activePromiseState;
   const audioRef = useRef(null);
+  const fadeIntervalRef = useRef(null);
 
   // Function to play background music
   const playBackgroundMusic = () => {
@@ -55,16 +74,90 @@ function App() {
     }
   };
 
-  // Toggle mute
+  // Manage Background Music: Play in Intro, Pause in Promise 1
+  useEffect(() => {
+    if (hasAnsweredYes) {
+      if (activePromise === 1) {
+        // Pause Intro music if we are in Promise 1 (Deep Link or Navigation)
+        if (audioRef.current) audioRef.current.pause();
+      } else {
+        // For Intro or other promises, ensure global music is playing
+        // Check if it's paused OR if volume was faded out, ensuring resume
+        if (audioRef.current) {
+          if (audioRef.current.paused) {
+            audioRef.current.volume = 0.3; // Reset volume
+            playBackgroundMusic();
+          } else if (audioRef.current.volume < 0.3) {
+            // If playing but faded (e.g. from aborted transition), restore volume
+            audioRef.current.volume = 0.3;
+          }
+        }
+      }
+    }
+  }, [hasAnsweredYes, activePromise]);
+
+  // Toggle mute / Play if paused
   const toggleMute = () => {
     if (audioRef.current) {
-      audioRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
+      // If audio is paused (autoplay blocked), play it
+      if (audioRef.current.paused) {
+        audioRef.current.play().catch(e => console.log('Play on unmute failed', e));
+        audioRef.current.muted = false;
+        setIsMuted(false);
+      } else {
+        // Otherwise toggle mute
+        audioRef.current.muted = !isMuted;
+        setIsMuted(!isMuted);
+      }
     }
   };
 
   // Check if unlock button should be available (on or after Feb 7th 12am)
   const canUnlock = currentDate >= START_DATE;
+
+  // Handle opening a promise with transition logic
+  const handleOpenPromise = (promiseNum) => {
+    // Clear any existing fade interval to prevent fighting
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
+
+    if (promiseNum === 1) {
+      // Fade out music over 5 seconds
+      if (audioRef.current) {
+        const startVolume = audioRef.current.volume;
+        const fadeDuration = 5000;
+        const intervalTime = 100;
+        const steps = fadeDuration / intervalTime;
+        const volumeStep = startVolume / steps;
+
+        fadeIntervalRef.current = setInterval(() => {
+          if (audioRef.current.volume > volumeStep) {
+            audioRef.current.volume -= volumeStep;
+          } else {
+            // Stop audio and clear interval
+            audioRef.current.volume = 0;
+            audioRef.current.pause();
+            if (fadeIntervalRef.current) {
+              clearInterval(fadeIntervalRef.current);
+              fadeIntervalRef.current = null;
+            }
+
+            // Navigate to Promise 1 after fade complete
+            setActivePromise(1);
+            // Reset volume for future use (if we come back)
+            audioRef.current.volume = 0.3;
+          }
+        }, intervalTime);
+      } else {
+        // No audio ref, just navigate
+        setActivePromise(1);
+      }
+    } else {
+      setActivePromise(promiseNum);
+    }
+  };
 
   return (
     <div className="app-container">
@@ -249,9 +342,16 @@ function App() {
               playBackgroundMusic();
             }}
           />
+        ) : activePromise === 1 ? (
+          /* Promise 1 - The Promise of Growth */
+          <Promise1Growth />
         ) : (
           /* Introduction Page - After saying Yes */
-          <IntroductionPage currentDate={currentDate} />
+          <IntroductionPage
+            currentDate={currentDate}
+            onOpenPromise={handleOpenPromise}
+            skipAnimation={true}
+          />
         )}
       </main>
 
@@ -302,6 +402,43 @@ function App() {
           ) : (
             <Volume2 size={24} color="#e91e63" />
           )}
+        </button>
+      )}
+
+      {/* Back Button - Only show when viewing a promise */}
+      {activePromise !== null && (
+        <button
+          onClick={() => setActivePromise(null)}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '20px',
+            padding: '0.75rem 1.5rem',
+            borderRadius: '50px',
+            background: 'rgba(255, 255, 255, 0.15)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(254, 243, 199, 0.3)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            color: '#fef3c7',
+            fontFamily: "'Dancing Script', cursive",
+            fontSize: '1rem',
+            transition: 'all 0.3s ease',
+            zIndex: 200,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          <ArrowLeft size={20} />
+          Back to Vachan
         </button>
       )}
 

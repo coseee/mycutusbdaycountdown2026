@@ -20,24 +20,24 @@ const leftPhotos = sortedPhotos.slice(17, 34);
 const bottomPhotos = sortedPhotos.slice(34, 51);
 const rightPhotos = sortedPhotos.slice(51, 69);
 
-const IntroductionPage = ({ currentDate }) => {
+const IntroductionPage = ({ currentDate, onOpenPromise, skipAnimation = false }) => {
     // Animation states
-    const [line1Visible, setLine1Visible] = useState(false);
-    const [line2Visible, setLine2Visible] = useState(false);
-    const [line3Visible, setLine3Visible] = useState(false);
-    const [message1Visible, setMessage1Visible] = useState(false);
-    const [message2Visible, setMessage2Visible] = useState(false);
-    const [finalVisible, setFinalVisible] = useState(false);
-    const [showDates, setShowDates] = useState(false);
+    const [line1Visible, setLine1Visible] = useState(skipAnimation);
+    const [line2Visible, setLine2Visible] = useState(skipAnimation);
+    const [line3Visible, setLine3Visible] = useState(skipAnimation);
+    const [message1Visible, setMessage1Visible] = useState(skipAnimation);
+    const [message2Visible, setMessage2Visible] = useState(skipAnimation);
+    const [finalVisible, setFinalVisible] = useState(skipAnimation);
+    const [showDates, setShowDates] = useState(skipAnimation);
 
     // Photo strip sequential visibility states
-    const [topStripVisible, setTopStripVisible] = useState(false);
-    const [rightStripVisible, setRightStripVisible] = useState(false);
-    const [bottomStripVisible, setBottomStripVisible] = useState(false);
-    const [leftStripVisible, setLeftStripVisible] = useState(false);
+    const [topStripVisible, setTopStripVisible] = useState(skipAnimation);
+    const [rightStripVisible, setRightStripVisible] = useState(skipAnimation);
+    const [bottomStripVisible, setBottomStripVisible] = useState(skipAnimation);
+    const [leftStripVisible, setLeftStripVisible] = useState(skipAnimation);
 
     // Background collage visibility
-    const [backgroundCollageVisible, setBackgroundCollageVisible] = useState(false);
+    const [backgroundCollageVisible, setBackgroundCollageVisible] = useState(skipAnimation);
 
 
 
@@ -52,23 +52,29 @@ const IntroductionPage = ({ currentDate }) => {
     const dayNumber = getCurrentDay();
 
     const allDates = [
-        { date: 'Feb 8', label: 'Promise 1', day: 8 },
-        { date: 'Feb 9', label: 'Promise 2', day: 9 },
-        { date: 'Feb 10', label: 'Promise 3', day: 10 },
-        { date: 'Feb 11', label: 'Promise 4', day: 11 },
-        { date: 'Feb 12', label: 'Promise 5', day: 12 },
-        { date: 'Feb 13', label: 'Promise 6', day: 13 },
-        { date: 'Feb 14', label: 'Promise 7', day: 14 },
+        { date: 'Feb 8th', label: '#Promise 1', day: 8, promiseNum: 1 },
     ];
 
-    const visibleDates = [allDates[0]]; // Only show Feb 8th as Coming Up
+    // Helper to get the exact unlock date/time for a promise
+    const getUnlockDate = (item) => {
+        const targetDate = new Date(2026, 1, item.day); // Feb 1st is month 1
+        if (item.promiseNum === 1) targetDate.setHours(21, 0, 0, 0); // 9 PM for Promise 1
+        else targetDate.setHours(0, 0, 0, 0); // Midnight for others
+        return targetDate;
+    };
+
+    // Show dates that are unlocked or just the next upcoming one
+    const unlockedDates = allDates.filter(item =>
+        (skipAnimation && item.promiseNum === 1) || currentDate >= getUnlockDate(item)
+    );
+    const nextLockedDate = allDates.find(item =>
+        !((skipAnimation && item.promiseNum === 1) || currentDate >= getUnlockDate(item))
+    );
+    const visibleDates = nextLockedDate ? [...unlockedDates, nextLockedDate] : unlockedDates;
 
     // Helper to calculate time left until a specific date
-    const getTimeLeft = (targetDay) => {
-        const targetDate = new Date('2026-02-01'); // Base
-        targetDate.setDate(targetDay);
-        targetDate.setHours(0, 0, 0, 0);
-
+    const getTimeLeft = (item) => {
+        const targetDate = getUnlockDate(item);
         const diff = targetDate - currentDate;
         if (diff <= 0) return null;
 
@@ -84,6 +90,8 @@ const IntroductionPage = ({ currentDate }) => {
 
     // Animation sequence
     useEffect(() => {
+        if (skipAnimation) return; // Skip animations if requested
+
         const timers = [];
 
         // New timing sequence to match the song
@@ -570,54 +578,78 @@ const IntroductionPage = ({ currentDate }) => {
                             Coming Up
                         </h3>
 
-                        {visibleDates.map((item, index) => (
-                            <div
-                                key={item.day}
-                                className="glass-card"
-                                style={{
-                                    padding: '0.75rem 1.25rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem',
-                                    opacity: 0,
-                                    animation: 'fadeInUp 0.5s ease-out forwards',
-                                    animationDelay: `${index * 0.15}s`,
-                                }}
-                            >
-                                <Calendar size={18} style={{ color: '#c2185b' }} />
-                                <div>
-                                    <p
-                                        className="font-heading"
-                                        style={{
-                                            margin: 0,
-                                            fontSize: '0.95rem',
-                                            color: '#880e4f',
-                                        }}
-                                    >
-                                        {item.date}
-                                    </p>
-                                    <p
-                                        className="font-body"
-                                        style={{
-                                            margin: 0,
-                                            fontSize: '0.75rem',
-                                            color: '#888',
-                                        }}
-                                    >
-                                        {item.label}
-                                    </p>
-                                </div>
-                                {currentDate.getDate() < item.day && (
-                                    <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                                        <Lock size={14} style={{ color: '#880e4f', marginBottom: '2px' }} />
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.65rem', color: '#880e4f', opacity: 0.8 }}>
-                                            <Clock size={10} />
-                                            <span>{getTimeLeft(item.day)}</span>
-                                        </div>
+                        {visibleDates.map((item, index) => {
+                            const isUnlocked = currentDate.getDate() >= item.day;
+                            return (
+                                <div
+                                    key={item.day}
+                                    className="glass-card"
+                                    onClick={() => isUnlocked && onOpenPromise && onOpenPromise(item.promiseNum)}
+                                    style={{
+                                        padding: '0.75rem 1.25rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.75rem',
+                                        opacity: 0,
+                                        animation: 'fadeInUp 0.5s ease-out forwards',
+                                        animationDelay: `${index * 0.15}s`,
+                                        cursor: isUnlocked ? 'pointer' : 'default',
+                                        transition: 'all 0.3s ease',
+                                        border: isUnlocked ? '2px solid rgba(233, 30, 99, 0.5)' : undefined,
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (isUnlocked) {
+                                            e.currentTarget.style.transform = 'scale(1.05)';
+                                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(233, 30, 99, 0.4)';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (isUnlocked) {
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.boxShadow = '';
+                                        }
+                                    }}
+                                >
+                                    <Calendar size={18} style={{ color: isUnlocked ? '#e91e63' : '#c2185b' }} />
+                                    <div>
+                                        <p
+                                            className="font-heading"
+                                            style={{
+                                                margin: 0,
+                                                fontSize: '0.95rem',
+                                                color: isUnlocked ? '#e91e63' : '#880e4f',
+                                            }}
+                                        >
+                                            {item.date}
+                                        </p>
+                                        <p
+                                            className="font-body"
+                                            style={{
+                                                margin: 0,
+                                                fontSize: '0.75rem',
+                                                color: isUnlocked ? '#c2185b' : '#888',
+                                            }}
+                                        >
+                                            {item.label} {isUnlocked && '✨'}
+                                        </p>
                                     </div>
-                                )}
-                            </div>
-                        ))}
+                                    {!isUnlocked && (
+                                        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                            <Lock size={14} style={{ color: '#880e4f', marginBottom: '2px' }} />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.65rem', color: '#880e4f', opacity: 0.8 }}>
+                                                <Clock size={10} />
+                                                <span>{getTimeLeft(item)}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {isUnlocked && (
+                                        <div style={{ marginLeft: 'auto', fontSize: '1.2rem' }}>
+                                            💫
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 )
             }
