@@ -58,8 +58,8 @@ function App() {
 
   // If promise parameter exists, auto-skip to that promise
   // DEFAULT TO OPEN: User requests direct access to Intro Page
-  const [isUnlocked, setIsUnlocked] = useState(true);
-  const [hasAnsweredYes, setHasAnsweredYes] = useState(true);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [hasAnsweredYes, setHasAnsweredYes] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const activePromiseState = useState(initialPromise);
   const [activePromise, setActivePromise] = activePromiseState;
@@ -350,7 +350,10 @@ function App() {
           <IntroductionPage
             currentDate={currentDate}
             onOpenPromise={handleOpenPromise}
-            skipAnimation={true}
+            onBackToStart={() => {
+              setIsUnlocked(false);
+              setHasAnsweredYes(false);
+            }}
           />
         )}
       </main>
@@ -404,6 +407,8 @@ function App() {
           )}
         </button>
       )}
+
+
 
       {/* Back Button - Only show when viewing a promise */}
       {activePromise !== null && (

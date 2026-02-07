@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Calendar, Sparkles, Lock, Clock } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, Sparkles, Lock, Clock, ArrowLeft, ChevronsRight } from 'lucide-react';
 
 // Photos sorted chronologically (oldest to newest) for clockwise flow: Top → Right → Bottom → Left
 const sortedPhotos = [
@@ -20,7 +20,7 @@ const leftPhotos = sortedPhotos.slice(17, 34);
 const bottomPhotos = sortedPhotos.slice(34, 51);
 const rightPhotos = sortedPhotos.slice(51, 69);
 
-const IntroductionPage = ({ currentDate, onOpenPromise, skipAnimation = false }) => {
+const IntroductionPage = ({ currentDate, onOpenPromise, onBackToStart, skipAnimation = false }) => {
     // Animation states
     const [line1Visible, setLine1Visible] = useState(skipAnimation);
     const [line2Visible, setLine2Visible] = useState(skipAnimation);
@@ -132,6 +132,22 @@ const IntroductionPage = ({ currentDate, onOpenPromise, skipAnimation = false })
         return () => timers.forEach(t => clearTimeout(t));
     }, []);
 
+    // Fast Forward - Immediately show everything
+    const handleFastForward = () => {
+        setLine1Visible(true);
+        setLine2Visible(true);
+        setLine3Visible(true);
+        setMessage1Visible(true);
+        setMessage2Visible(true);
+        setFinalVisible(true);
+        setBackgroundCollageVisible(true);
+        setTopStripVisible(true);
+        setLeftStripVisible(true);
+        setBottomStripVisible(true);
+        setRightStripVisible(true);
+        setShowDates(true);
+    };
+
     // Shared animation styles
     const fadeUpStyle = (visible) => ({
         opacity: visible ? 1 : 0,
@@ -157,6 +173,88 @@ const IntroductionPage = ({ currentDate, onOpenPromise, skipAnimation = false })
                 // overflow removed to allow photos at edges
             }}
         >
+            {/* Go Back Button */}
+            {onBackToStart && (
+                <button
+                    onClick={onBackToStart}
+                    title="Go Back to Start"
+                    style={{
+                        position: 'fixed',
+                        top: '25px',
+                        left: '25px',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '50px',
+                        background: 'white',
+                        border: '2px solid #e91e63',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        color: '#e91e63',
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        zIndex: 1000,
+                        boxShadow: '0 4px 15px rgba(233, 30, 99, 0.4)',
+                        transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#fff0f5';
+                        e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(233, 30, 99, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'white';
+                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(233, 30, 99, 0.4)';
+                    }}
+                >
+                    <ArrowLeft size={16} />
+                    <span>Go Back</span>
+                </button>
+            )}
+
+            {/* Fast Forward (>>) Button - Only show while animations are running */}
+            {!showDates && (
+                <button
+                    onClick={handleFastForward}
+                    title="Skip Animations"
+                    style={{
+                        position: 'fixed',
+                        top: '25px',
+                        right: '25px',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '50px',
+                        background: 'white',
+                        border: '2px solid #e91e63',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        color: '#e91e63',
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        zIndex: 1000,
+                        boxShadow: '0 4px 15px rgba(233, 30, 99, 0.4)',
+                        transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#fff0f5';
+                        e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(233, 30, 99, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'white';
+                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(233, 30, 99, 0.4)';
+                    }}
+                >
+                    <span>Skip</span>
+                    <ChevronsRight size={16} />
+                </button>
+            )}
+
             {/* Background Photo Collage - Scattered around outer edges ONLY */}
 
             {/* BACKGROUND PHOTO COLLAGES - fade in after final message */}
