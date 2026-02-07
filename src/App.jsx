@@ -56,18 +56,47 @@ function App() {
 
   const initialPromise = getInitialPromise();
 
-  // If promise parameter exists, auto-skip to that promise
-  // DEFAULT TO OPEN: User requests direct access to Intro Page
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [hasAnsweredYes, setHasAnsweredYes] = useState(false);
+  // Helper to validate unlock time for direct links
+  const isPromiseUnlocked = (promiseNum) => {
+    // START_DATE is Feb 7. Promise 1 is Feb 8 9pm.
+    // Simple check for now - can be expanded.
+    if (promiseNum === 1) {
+      const unlockDate = new Date(2026, 1, 8, 21, 0, 0); // Feb 8 9:00 PM
+      return new Date() >= unlockDate;
+    }
+    return true; // Future promises
+  };
+
+  // State Initialization
+  // If valid promise param exists AND it is unlocked by date
+  const startUnlocked = initialPromise !== null && isPromiseUnlocked(initialPromise);
+
+  const [isUnlocked, setIsUnlocked] = useState(startUnlocked);
+  const [hasAnsweredYes, setHasAnsweredYes] = useState(startUnlocked);
   const [isMuted, setIsMuted] = useState(false);
-  const activePromiseState = useState(initialPromise);
-  const [activePromise, setActivePromise] = activePromiseState;
+  const [activePromise, setActivePromise] = useState(initialPromise);
+  const [isTransitioningPage, setIsTransitioningPage] = useState(false);
   const audioRef = useRef(null);
   const fadeIntervalRef = useRef(null);
 
+  // Sync URL with Active Promise
+  useEffect(() => {
+    if (activePromise !== null) {
+      const url = new URL(window.location);
+      url.searchParams.set('promise', activePromise);
+      window.history.pushState({}, '', url);
+    } else {
+      const url = new URL(window.location);
+      url.searchParams.delete('promise');
+      window.history.pushState({}, '', url);
+    }
+  }, [activePromise]);
+
+  // Function to play background music
   // Function to play background music
   const playBackgroundMusic = () => {
+    if (activePromise === 1) return; // Never play background music in Promise 1
+
     if (audioRef.current) {
       audioRef.current.volume = 0.3; // Soft volume
       audioRef.current.play().catch(e => console.log('Audio play failed:', e));
@@ -99,15 +128,13 @@ function App() {
   // Toggle mute / Play if paused
   const toggleMute = () => {
     if (audioRef.current) {
-      // If audio is paused (autoplay blocked), play it
-      if (audioRef.current.paused) {
+      const nextMuted = !isMuted;
+      setIsMuted(nextMuted);
+      audioRef.current.muted = nextMuted;
+
+      // Only try to play if we are unmuting AND NOT in Promise 1
+      if (!nextMuted && audioRef.current.paused && activePromise !== 1) {
         audioRef.current.play().catch(e => console.log('Play on unmute failed', e));
-        audioRef.current.muted = false;
-        setIsMuted(false);
-      } else {
-        // Otherwise toggle mute
-        audioRef.current.muted = !isMuted;
-        setIsMuted(!isMuted);
       }
     }
   };
@@ -124,43 +151,66 @@ function App() {
     }
 
     if (promiseNum === 1) {
-      // Fade out music over 5 seconds
+      // Shorten audio fade for a snappier transition
       if (audioRef.current) {
         const startVolume = audioRef.current.volume;
-        const fadeDuration = 5000;
-        const intervalTime = 100;
+        const fadeDuration = 1500; // 1.5 seconds
+        const intervalTime = 50;
         const steps = fadeDuration / intervalTime;
         const volumeStep = startVolume / steps;
 
         fadeIntervalRef.current = setInterval(() => {
-          if (audioRef.current.volume > volumeStep) {
+          if (audioRef.current && audioRef.current.volume > volumeStep) {
             audioRef.current.volume -= volumeStep;
           } else {
             // Stop audio and clear interval
-            audioRef.current.volume = 0;
-            audioRef.current.pause();
+            if (audioRef.current) {
+              audioRef.current.volume = 0;
+              audioRef.current.pause();
+            }
             if (fadeIntervalRef.current) {
               clearInterval(fadeIntervalRef.current);
               fadeIntervalRef.current = null;
             }
 
-            // Navigate to Promise 1 after fade complete
+            // Sync navigation with visual fade
             setActivePromise(1);
-            // Reset volume for future use (if we come back)
-            audioRef.current.volume = 0.3;
+            setIsTransitioningPage(false); // Fade in the new page
+            // Volume will be reset by useEffect when navigating AWAY from Promise 1
           }
         }, intervalTime);
       } else {
-        // No audio ref, just navigate
         setActivePromise(1);
+        setIsTransitioningPage(false);
       }
     } else {
       setActivePromise(promiseNum);
+      setIsTransitioningPage(false);
     }
+  };
+
+  // Generic navigate with transition (for going back etc)
+  const navigateWithTransition = (promiseNum) => {
+    setIsTransitioningPage(true);
+    setTimeout(() => {
+      setActivePromise(promiseNum);
+      setIsTransitioningPage(false);
+    }, 600); // Wait for fade-out
   };
 
   return (
     <div className="app-container">
+      {/* Page Transition Overlay */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'black',
+        zIndex: 9999,
+        pointerEvents: 'none',
+        opacity: isTransitioningPage ? 1 : 0,
+        transition: 'opacity 0.6s ease-in-out'
+      }} />
+
       <BackgroundHearts />
 
       {/* Main Content - Absolutely Centered */}
@@ -174,280 +224,302 @@ function App() {
         width: '100%',
         maxWidth: '900px',
         padding: '0 1rem',
-        gap: '2rem'
+        gap: '2rem',
+        opacity: isTransitioningPage ? 0 : 1,
+        transition: 'opacity 0.6s ease-in-out'
       }}>
 
         {/* Hero Section */}
         <header style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
           {/* Only show heart and title before unlock */}
-          {!isUnlocked && (
-            <>
-              <div
-                className="animate-pulse-glow"
-                style={{
-                  padding: '1.5rem',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4))',
-                  backdropFilter: 'blur(10px)',
-                  border: '2px solid rgba(255,255,255,0.5)',
-                  boxShadow: '0 8px 32px rgba(136, 14, 79, 0.2)',
-                }}
-              >
-                <Heart
-                  size={64}
-                  style={{ color: '#c2185b', fill: '#e91e63' }}
-                />
-              </div>
-
-              {/* Title */}
-              <h1
-                className="font-heading text-heading"
-                style={{
-                  fontSize: 'clamp(2.5rem, 8vw, 5rem)',
-                  fontWeight: 700,
-                  lineHeight: 1.1,
-                  textShadow: '2px 2px 8px rgba(136, 14, 79, 0.2)',
-                  margin: 0,
-                }}
-              >
-                My Cutu's Birthday Countdown
-              </h1>
-            </>
-          )}
-          {/* Subtitle - Personal Message (only show before unlock) */}
-          {!isUnlocked && (
-            <p
-              className="font-body"
-              style={{
-                fontSize: 'clamp(1rem, 3vw, 1.5rem)',
-                color: '#6a6a6a',
-                fontWeight: 300,
-                maxWidth: '600px',
-                lineHeight: 1.6,
-              }}
-            >
-              I wasn't allowed to spend money..... so I spent my time building this for you{' '}
-              <span
-                style={{
-                  position: 'relative',
-                  cursor: 'pointer',
-                  display: 'inline-block',
-                }}
-                className="emoji-easter-egg"
-              >
-                🥰
-                <span
-                  className="easter-egg-tooltip"
+          {
+            !isUnlocked && (
+              <>
+                <div
+                  className="animate-pulse-glow"
                   style={{
-                    position: 'absolute',
-                    bottom: '120%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'linear-gradient(135deg, #fff 0%, #fce4ec 100%)',
-                    color: '#880e4f',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '12px',
-                    fontSize: '0.9rem',
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 4px 15px rgba(136, 14, 79, 0.2)',
-                    opacity: 0,
-                    visibility: 'hidden',
-                    transition: 'all 0.3s ease',
-                    pointerEvents: 'none',
+                    padding: '1.5rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(145deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4))',
+                    backdropFilter: 'blur(10px)',
+                    border: '2px solid rgba(255,255,255,0.5)',
+                    boxShadow: '0 8px 32px rgba(136, 14, 79, 0.2)',
                   }}
                 >
-                  I hope you like it bb 🧡
-                </span>
-              </span>
-            </p>
-          )}
-        </header>
-
-        {/* Show Countdown Section until user clicks Unlock */}
-        {!isUnlocked ? (
-          <section
-            className="glass-card"
-            style={{
-              width: '100%',
-              maxWidth: '700px',
-              padding: '2rem',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '1.5rem',
-            }}
-          >
-            {/* Show countdown if still pre-event */}
-            {isPreEvent ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Sparkles size={24} style={{ color: '#c2185b' }} />
-                  <h2
-                    className="font-heading text-primary-dark"
-                    style={{ fontSize: '1.75rem', margin: 0 }}
-                  >
-                    Beginning on Feb 7th
-                  </h2>
-                  <Sparkles size={24} style={{ color: '#c2185b' }} />
+                  <Heart
+                    size={64}
+                    style={{ color: '#c2185b', fill: '#e91e63' }}
+                  />
                 </div>
-                <Countdown targetDate={START_DATE} currentDate={currentDate} />
-              </>
-            ) : (
-              /* Countdown ended - show celebration message */
-              <div className="font-heading text-primary-dark animate-celebration" style={{ fontSize: '2.5rem', textAlign: 'center' }}>
-                🎉 It's Time! 🎉
-              </div>
-            )}
 
-            {/* Unlock Button - Only visible after countdown ends */}
-            {canUnlock && (
-              <button
-                className="animate-fade-in-up"
-                onClick={() => setIsUnlocked(true)}
+                {/* Title */}
+                <h1
+                  className="font-heading text-heading"
+                  style={{
+                    fontSize: 'clamp(2.5rem, 8vw, 5rem)',
+                    fontWeight: 700,
+                    lineHeight: 1.1,
+                    textShadow: '2px 2px 8px rgba(136, 14, 79, 0.2)',
+                    margin: 0,
+                  }}
+                >
+                  My Cutu's Birthday Countdown
+                </h1>
+              </>
+            )
+          }
+          {/* Subtitle - Personal Message (only show before unlock) */}
+          {
+            !isUnlocked && (
+              <p
+                className="font-body"
                 style={{
-                  marginTop: '1rem',
-                  padding: '1rem 2.5rem',
-                  fontSize: '1.25rem',
-                  fontFamily: "'Dancing Script', cursive",
-                  fontWeight: 700,
-                  color: '#fff',
-                  background: 'linear-gradient(135deg, #e91e63 0%, #c2185b 100%)',
-                  border: 'none',
-                  borderRadius: '50px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 20px rgba(233, 30, 99, 0.4)',
-                  transition: 'all 0.3s ease',
-                  animationDelay: '0.3s',
-                  opacity: 0,
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'scale(1.05)';
-                  e.target.style.boxShadow = '0 6px 30px rgba(233, 30, 99, 0.6)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'scale(1)';
-                  e.target.style.boxShadow = '0 4px 20px rgba(233, 30, 99, 0.4)';
+                  fontSize: 'clamp(1rem, 3vw, 1.5rem)',
+                  color: '#6a6a6a',
+                  fontWeight: 300,
+                  maxWidth: '600px',
+                  lineHeight: 1.6,
                 }}
               >
-                💝 Unlock Your Surprises 💝
-              </button>
-            )}
-          </section>
-        ) : !hasAnsweredYes ? (
-          /* Valentine Question Experience */
-          <ValentineQuestion
-            onYesClick={() => {
-              setHasAnsweredYes(true);
-              playBackgroundMusic();
-            }}
-          />
-        ) : activePromise === 1 ? (
-          /* Promise 1 - The Promise of Growth */
-          <Promise1Growth />
-        ) : (
-          /* Introduction Page - After saying Yes */
-          <IntroductionPage
-            currentDate={currentDate}
-            onOpenPromise={handleOpenPromise}
-            onBackToStart={() => {
-              setIsUnlocked(false);
-              setHasAnsweredYes(false);
-            }}
-          />
-        )}
-      </main>
+                I wasn't allowed to spend money..... so I spent my time building this for you{' '}
+                <span
+                  style={{
+                    position: 'relative',
+                    cursor: 'pointer',
+                    display: 'inline-block',
+                  }}
+                  className="emoji-easter-egg"
+                >
+                  🥰
+                  <span
+                    className="easter-egg-tooltip"
+                    style={{
+                      position: 'absolute',
+                      bottom: '120%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'linear-gradient(135deg, #fff 0%, #fce4ec 100%)',
+                      color: '#880e4f',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '12px',
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 4px 15px rgba(136, 14, 79, 0.2)',
+                      opacity: 0,
+                      visibility: 'hidden',
+                      transition: 'all 0.3s ease',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    I hope you like it bb 🧡
+                  </span>
+                </span>
+              </p>
+            )
+          }
+        </header >
+
+        {/* Show Countdown Section until user clicks Unlock */}
+        {
+          !isUnlocked ? (
+            <section
+              className="glass-card"
+              style={{
+                width: '100%',
+                maxWidth: '700px',
+                padding: '2rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '1.5rem',
+              }}
+            >
+              {/* Show countdown if still pre-event */}
+              {isPreEvent ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Sparkles size={24} style={{ color: '#c2185b' }} />
+                    <h2
+                      className="font-heading text-primary-dark"
+                      style={{ fontSize: '1.75rem', margin: 0 }}
+                    >
+                      Beginning on Feb 7th
+                    </h2>
+                    <Sparkles size={24} style={{ color: '#c2185b' }} />
+                  </div>
+                  <Countdown targetDate={START_DATE} currentDate={currentDate} />
+                </>
+              ) : (
+                /* Countdown ended - show celebration message */
+                <div className="font-heading text-primary-dark animate-celebration" style={{ fontSize: '2.5rem', textAlign: 'center' }}>
+                  🎉 It's Time! 🎉
+                </div>
+              )}
+
+              {/* Unlock Button - Only visible after countdown ends */}
+              {canUnlock && (
+                <button
+                  className="animate-fade-in-up"
+                  onClick={() => setIsUnlocked(true)}
+                  style={{
+                    marginTop: '1rem',
+                    padding: '1rem 2.5rem',
+                    fontSize: '1.25rem',
+                    fontFamily: "'Dancing Script', cursive",
+                    fontWeight: 700,
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, #e91e63 0%, #c2185b 100%)',
+                    border: 'none',
+                    borderRadius: '50px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 20px rgba(233, 30, 99, 0.4)',
+                    transition: 'all 0.3s ease',
+                    animationDelay: '0.3s',
+                    opacity: 0,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'scale(1.05)';
+                    e.target.style.boxShadow = '0 6px 30px rgba(233, 30, 99, 0.6)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'scale(1)';
+                    e.target.style.boxShadow = '0 4px 20px rgba(233, 30, 99, 0.4)';
+                  }}
+                >
+                  💝 Unlock Your Surprises 💝
+                </button>
+              )}
+            </section>
+          ) : !hasAnsweredYes ? (
+            /* Valentine Question Experience */
+            <ValentineQuestion
+              onYesClick={() => {
+                setHasAnsweredYes(true);
+                playBackgroundMusic();
+              }}
+            />
+          ) : activePromise === 1 ? (
+            /* Promise 1 - The Promise of Growth */
+            <Promise1Growth isMuted={isMuted} toggleMute={toggleMute} />
+          ) : (
+            /* Introduction Page - After saying Yes */
+            <IntroductionPage
+              currentDate={currentDate}
+              onOpenPromise={(num) => {
+                setIsTransitioningPage(true);
+                // Wait for visual fade-out before starting audio fade/navigation
+                setTimeout(() => {
+                  handleOpenPromise(num);
+                }, 600);
+              }}
+              onBackToStart={() => {
+                setIsTransitioningPage(true);
+                setTimeout(() => {
+                  setIsUnlocked(false);
+                  setHasAnsweredYes(false);
+                  setIsTransitioningPage(false);
+                }, 600);
+              }}
+            />
+          )
+        }
+      </main >
 
       {/* Footer */}
-      <footer className="footer font-heading" style={{ color: '#880e4f', fontSize: '1.1rem' }}>
+      < footer className="footer font-heading" style={{ color: '#880e4f', fontSize: '1.1rem' }}>
         <p style={{ margin: 0 }}>
           Made with ❤️ by <span style={{ color: '#e91e63', fontWeight: 700 }}>Omo</span> for his <span style={{ color: '#e65100', fontWeight: 700, textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>Peru</span>
         </p>
         <p className="font-body" style={{ fontSize: '0.75rem', opacity: 0.5, marginTop: '0.25rem' }}>
           {currentDate.toLocaleString()}
         </p>
-      </footer>
+      </footer >
 
       {/* Background Music */}
-      <audio
+      < audio
         ref={audioRef}
         src="/mycutusbdaycountdown2026/music/background.mp3"
         loop
         preload="auto"
       />
 
-      {/* Mute/Unmute Button - Only show after Yes */}
-      {hasAnsweredYes && (
-        <button
-          onClick={toggleMute}
-          style={{
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            background: 'rgba(255, 255, 255, 0.9)',
-            border: '2px solid #e91e63',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 15px rgba(233, 30, 99, 0.3)',
-            transition: 'all 0.3s ease',
-            zIndex: 100,
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          {isMuted ? (
-            <VolumeX size={24} color="#e91e63" />
-          ) : (
-            <Volume2 size={24} color="#e91e63" />
-          )}
-        </button>
-      )}
+      {/* Mute/Unmute Button - Global (Hidden in Promise 1) */}
+      {
+        hasAnsweredYes && activePromise !== 1 && (
+          <button
+            onClick={toggleMute}
+            style={{
+              position: 'fixed',
+              bottom: '20px',
+              right: '20px',
+              width: '50px',
+              height: '50px',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: '2px solid #e91e63',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 15px rgba(233, 30, 99, 0.3)',
+              transition: 'all 0.3s ease',
+              zIndex: 100,
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            {isMuted ? (
+              <VolumeX size={24} color="#e91e63" />
+            ) : (
+              <Volume2 size={24} color="#e91e63" />
+            )}
+          </button>
+        )
+      }
 
 
 
       {/* Back Button - Only show when viewing a promise */}
-      {activePromise !== null && (
-        <button
-          onClick={() => setActivePromise(null)}
-          style={{
-            position: 'fixed',
-            top: '20px',
-            left: '20px',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '50px',
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(254, 243, 199, 0.3)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            color: '#fef3c7',
-            fontFamily: "'Dancing Script', cursive",
-            fontSize: '1rem',
-            transition: 'all 0.3s ease',
-            zIndex: 200,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          <ArrowLeft size={20} />
-          Back to Vachan
-        </button>
-      )}
+      {
+        activePromise !== null && (
+          <button
+            onClick={() => navigateWithTransition(null)}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              left: '20px',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '50px',
+              background: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(254, 243, 199, 0.3)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#fef3c7',
+              fontFamily: "'Dancing Script', cursive",
+              fontSize: '1rem',
+              transition: 'all 0.3s ease',
+              zIndex: 200,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <ArrowLeft size={20} />
+            Back to Vachan
+          </button>
+        )
+      }
 
-    </div>
+    </div >
   );
 }
 

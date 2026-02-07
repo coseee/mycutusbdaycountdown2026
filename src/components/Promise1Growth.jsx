@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Volume2, VolumeX } from 'lucide-react';
 import { useMousePosition } from '../hooks/useMousePosition';
 
 // Floating Glow Orbs - Background effect (Galaxy Version)
@@ -38,15 +38,17 @@ const FloatingGlow = () => {
     );
 };
 
-const Promise1Growth = () => {
+const Promise1Growth = ({ isMuted, toggleMute }) => {
     const containerRef = useRef(null);
     const musicRef = useRef(null);
     const { position: mousePosition, isActive: mouseActive } = useMousePosition(1); // Instant tracking
 
     // Animation states
     const [particles, setParticles] = useState([]);
+    const particlesRef = useRef([]); // Ref for physics
     const [moonProgress, setMoonProgress] = useState(0); // 0 to 100
     const [moonPhase, setMoonPhase] = useState('new'); // 'new' | 'waxing' | 'full'
+    const [sunVisible, setSunVisible] = useState(false); // New: Sun reveal delay
     const [isTransitioning, setIsTransitioning] = useState(false); // For smooth move to orbit
 
     // Moon Position State
@@ -58,12 +60,42 @@ const Promise1Growth = () => {
     const [sunPos, setSunPos] = useState({ x: 50, y: 50 });
     const sunPosRef = useRef(sunPos);
 
-    // Play Promise 1 music on mount
+    // Initial Entry Animation (Moon fades in over 25s)
+    const [entryProgress, setEntryProgress] = useState(0);
+
+    // Interaction State
+    const [hasMoved, setHasMoved] = useState(false);
+
+    // Play Promise 1 music on mount and start Sun reveal timer
+    // Play Promise 1 music on mount and start Sun reveal timer
     useEffect(() => {
+        // AUDIO START (Simple & Robust)
         if (musicRef.current) {
             musicRef.current.volume = 0.4;
-            musicRef.current.play().catch(e => console.log('Promise 1 audio failed:', e));
+            musicRef.current.play().catch(e => {
+                console.log('Promise 1 audio autoplay failed:', e);
+            });
         }
+
+        // MOON REVEAL ANIMATION (25 seconds)
+        const startTime = Date.now();
+        const duration = 25000; // 25s
+
+        const revealInterval = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            setEntryProgress(progress);
+
+            if (progress >= 1) clearInterval(revealInterval);
+        }, 50); // Update every 50ms
+
+        // SUN REVEAL DELAY (30 seconds)
+        const sunTimer = setTimeout(() => setSunVisible(true), 30000);
+
+        return () => {
+            clearTimeout(sunTimer);
+            clearInterval(revealInterval);
+        };
     }, []);
 
     // Update Sun position based on mouse
@@ -84,8 +116,10 @@ const Promise1Growth = () => {
             const clampedY = Math.max(2, Math.min(98, relY));
 
             setSunPos({ x: clampedX, y: clampedY });
+
+            if (!hasMoved) setHasMoved(true);
         }
-    }, [mousePosition, mouseActive]);
+    }, [mousePosition, mouseActive, hasMoved]);
 
     // Keep ref updated for intervals
     useEffect(() => {
@@ -95,91 +129,91 @@ const Promise1Growth = () => {
     // Particle System & Moon Logic
     useEffect(() => {
         const particleInterval = setInterval(() => {
-            if (moonPhase === 'full' || isTransitioning) return; // Stop emitting when full or moving to orbit
+            if (moonPhase === 'full' || isTransitioning || !sunVisible || !hasMoved) return; // Only emit when Sun is visible AND cursor moved
 
             const id = Date.now() + Math.random();
             const startX = sunPosRef.current.x;
             const startY = sunPosRef.current.y;
 
-            // Create particle at Sun position
-            setParticles(prev => [
-                ...prev,
-                {
-                    id,
-                    x: startX,
-                    y: startY,
-                    progress: 0,
-                    speed: 0.02 + Math.random() * 0.01, // Travel speed
-                }
-            ]);
-        }, 300); // New particle every 300ms
+            // Calculate angle to center (50, 50)
+            const dx = 50 - startX;
+            const dy = 50 - startY;
+            const angle = Math.atan2(dy, dx);
+
+            // Add to Ref (Physics Source)
+            particlesRef.current.push({
+                id,
+                x: startX,
+                y: startY,
+                angle, // Store angle for rotation
+                progress: 0,
+                speed: 0.02 + Math.random() * 0.01,
+            });
+        }, 75); // Fast beam: New particle every 75ms
 
         // Animation Loop for particles
         let animationFrame;
         const animate = () => {
-            setParticles(prevParticles => {
-                const nextParticles = [];
-                let absorbedCount = 0;
+            const currentParticles = particlesRef.current;
+            const nextParticles = [];
+            let absorbedCount = 0;
 
-                prevParticles.forEach(p => {
-                    // Target is center (50, 50) for now
-                    const targetX = 50;
-                    const targetY = 50;
+            currentParticles.forEach(p => {
+                // Target: Center (50, 50)
+                const targetX = 50;
+                const targetY = 50;
 
-                    const newProgress = p.progress + p.speed;
+                const newProgress = p.progress + p.speed;
 
-                    // Interpolate position
-                    const currentX = p.x + (targetX - p.x) * newProgress;
-                    const currentY = p.y + (targetY - p.y) * newProgress;
+                // Interpolate
+                const currentX = p.x + (targetX - p.x) * newProgress;
+                const currentY = p.y + (targetY - p.y) * newProgress;
 
-                    if (newProgress >= 1) {
-                        absorbedCount++; // Particle reached Moon
-                    } else {
-                        nextParticles.push({ ...p, x: currentX, y: currentY, progress: newProgress });
-                    }
-                });
-
-                if (absorbedCount > 0) {
-                    setMoonProgress(prev => {
-                        // Calculate distance from center (50, 50) to Sun (sunPosRef.current)
-                        const sunX = sunPosRef.current.x;
-                        const sunY = sunPosRef.current.y;
-                        const dist = Math.sqrt(Math.pow(sunX - 50, 2) + Math.pow(sunY - 50, 2));
-
-                        // Max distance is approx 70 (corner to center)
-                        // Factor: Closer = 1.0, Furthest = ~0.2
-                        const distanceFactor = Math.max(0.2, 1 - (dist / 70));
-
-                        // Check for fast mode (skip wait)
-                        const params = new URLSearchParams(window.location.search);
-                        const isFastMode = params.get('fast') === 'true';
-
-                        let growth;
-                        if (isFastMode) {
-                            // 10 seconds to fill
-                            // 300ms emission = ~3.3 particles/sec -> 33 particles in 10s
-                            // 100% / 33 = ~3% per particle
-                            growth = 3.0;
-                        } else {
-                            // Normal mode: Distance-based
-                            // Base growth 0.25% * factor (~2 minutes at max speed, ~10 minutes at min)
-                            growth = 0.25 * distanceFactor;
-                        }
-
-                        const newProg = Math.min(100, prev + absorbedCount * growth);
-                        if (newProg >= 100) {
-                            setIsTransitioning(true); // Start transition to orbit
-                            setTimeout(() => {
-                                setIsTransitioning(false);
-                                setMoonPhase('full');
-                            }, 2000); // 2s transition
-                        }
-                        return newProg;
-                    });
+                if (newProgress >= 1) {
+                    absorbedCount++; // Reached Moon
+                } else {
+                    p.x = currentX;
+                    p.y = currentY;
+                    p.progress = newProgress;
+                    nextParticles.push(p);
                 }
-
-                return nextParticles;
             });
+
+            // Update Ref
+            particlesRef.current = nextParticles;
+
+            // Update State for Render (if particles exist)
+            if (currentParticles.length > 0) {
+                setParticles([...nextParticles]);
+            }
+
+            // Handle Growth (Side Effect Safe Here)
+            if (absorbedCount > 0) {
+                setMoonProgress(prev => {
+                    // Calculate distance
+                    const sunX = sunPosRef.current.x;
+                    const sunY = sunPosRef.current.y;
+                    const dist = Math.sqrt(Math.pow(sunX - 50, 2) + Math.pow(sunY - 50, 2));
+
+                    // Max distance ~70. Factor 1.0 (Close) -> 0.4 (Far)
+                    const distanceFactor = Math.max(0.4, 1 - (dist / 70));
+
+                    // Growth Rate
+                    const growth = 0.0625 * distanceFactor;
+
+                    const newProg = Math.min(100, prev + absorbedCount * growth);
+
+                    if (newProg >= 100) {
+                        setIsTransitioning(true);
+                        setTimeout(() => {
+                            setIsTransitioning(false);
+                            setMoonPhase('full');
+                        }, 2000);
+                    }
+                    return newProg;
+                });
+            }
+
             animationFrame = requestAnimationFrame(animate);
         };
 
@@ -189,7 +223,7 @@ const Promise1Growth = () => {
             clearInterval(particleInterval);
             cancelAnimationFrame(animationFrame);
         };
-    }, [moonPhase, isTransitioning]);
+    }, [moonPhase, isTransitioning, sunVisible, hasMoved]);
 
     // ORBIT LOGIC (Only when 'full')
     useEffect(() => {
@@ -249,6 +283,118 @@ const Promise1Growth = () => {
             {/* Floating Glow Orbs (Yellow Circles) */}
             <FloatingGlow />
 
+            {/* Title - Fade in ONLY when Sun moves to center (Finale) */}
+            <div
+                style={{
+                    position: 'absolute',
+                    top: '8%', // Moved up from 15%
+                    width: '100%',
+                    textAlign: 'center',
+                    zIndex: 20,
+                    pointerEvents: 'none',
+                    opacity: isSunEnhanced ? 1 : 0,
+                    transition: 'opacity 3s ease-in-out',
+                    transitionDelay: '1s', // Wait for sun to start moving
+                }}
+            >
+                <h1
+                    style={{
+                        fontFamily: "'Dancing Script', cursive",
+                        fontSize: '3.5rem',
+                        color: '#fff',
+                        margin: 0,
+                        textShadow: '0 0 20px rgba(251, 191, 36, 0.4)',
+                    }}
+                >
+                    The Promise of Growth
+                </h1>
+            </div>
+
+            <div
+                style={{
+                    position: 'absolute',
+                    top: '20%', // Moved up from 40% to top-left
+                    left: '10%',
+                    maxWidth: '350px', // Slightly wider for cursive
+                    textAlign: 'left',
+                    zIndex: 20,
+                    pointerEvents: 'none',
+                    opacity: isSunEnhanced ? 1 : 0,
+                    transition: 'opacity 3s ease-in-out',
+                    transitionDelay: '6s', // 5s after title start (+1s base)
+                }}
+            >
+                <div style={{ marginBottom: '0.5rem' }}>
+                    <span style={{
+                        fontFamily: "'Dancing Script', cursive",
+                        fontSize: '1.8rem',
+                        background: 'linear-gradient(to right, #fbcfe8, #d8b4fe)', // Rose-Pink to Lavender
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                        color: 'transparent',
+                        lineHeight: 1.4,
+                        fontWeight: 700,
+                        display: 'inline', // Ensure gradient applies cleanly
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))', // Added correct drop-shadow
+                    }}>
+                        "The Moon has no light of its own, it only reflects the Sun." 🌑✨
+                    </span>
+                </div>
+                <p style={{
+                    fontFamily: "'Dancing Script', cursive",
+                    fontSize: '1.5rem',
+                    color: '#f5d0fe', // Fuchsia 200 (Soft Pink)
+                    fontWeight: 600,
+                    textShadow: '0 0 10px rgba(245, 208, 254, 0.4)',
+                    marginLeft: '1rem',
+                }}>
+                    "And I am at my brightest when I am near you." 🌕💖
+                </p>
+            </div>
+
+            {/* Right Side Poetry - Fades in last */}
+            <div
+                style={{
+                    position: 'absolute',
+                    bottom: '15%',
+                    right: '10%',
+                    maxWidth: '350px',
+                    textAlign: 'right',
+                    zIndex: 20,
+                    pointerEvents: 'none',
+                    opacity: isSunEnhanced ? 1 : 0,
+                    transition: 'opacity 3s ease-in-out',
+                    transitionDelay: '16s', // 10s after left text (+6s base)
+                }}
+            >
+                <div style={{ marginBottom: '0.5rem' }}>
+                    <span style={{
+                        fontFamily: "'Dancing Script', cursive",
+                        fontSize: '2rem',
+                        background: 'linear-gradient(to right, #fbbf24, #f59e0b)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                        color: 'transparent',
+                        display: 'inline',
+                        fontWeight: 700,
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+                    }}>
+                        You are my Sun, and I am forever in your orbit. ☀️💫
+                    </span>
+                </div>
+                <p style={{
+                    fontFamily: "'Dancing Script', cursive",
+                    fontSize: '1.8rem',
+                    color: '#f472b6', // Pink 400
+                    fontWeight: 600,
+                    textShadow: '0 0 10px rgba(244, 114, 182, 0.4)',
+                }}>
+                    Always growing, for you 🌹
+                </p>
+            </div>
+
             {/* Particles */}
             {particles.map(p => (
                 <div
@@ -257,11 +403,15 @@ const Promise1Growth = () => {
                         position: 'absolute',
                         left: `${p.x}%`,
                         top: `${p.y}%`,
-                        width: '4px',
-                        height: '4px',
+                        width: '12px',
+                        height: '12px',
                         borderRadius: '50%',
-                        background: '#fcd34d',
-                        boxShadow: '0 0 10px #fcd34d',
+                        borderRight: '3px solid #fcd34d', // Wifi arc shape
+                        borderTop: '3px solid transparent',
+                        borderBottom: '3px solid transparent',
+                        borderLeft: '3px solid transparent',
+                        transform: `translate(-50%, -50%) rotate(${p.angle}rad)`, // Rotate towards center
+                        filter: 'drop-shadow(0 0 4px #fcd34d)',
                         opacity: 1,
                         pointerEvents: 'none',
                         zIndex: 18,
@@ -279,14 +429,17 @@ const Promise1Growth = () => {
                     top: `${sunPos.y}%`,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20,
-                    cursor: 'none',
+                    cursor: sunVisible ? 'none' : 'auto',
+                    opacity: sunVisible ? 1 : 0,
+                    pointerEvents: sunVisible ? 'auto' : 'none',
                     width: '60px', // Explicit size for centering
                     height: '60px',
                     display: 'flex',
                     alignItems: 'center', // Just to be safe
                     justifyContent: 'center',
-                    pointerEvents: 'none', // Allow clicks through
-                    transition: moonPhase === 'full' ? 'left 2s ease-in-out, top 2s ease-in-out' : 'none', // Instant tracking normally, Smooth for finale
+                    transition: moonPhase === 'full'
+                        ? 'left 2s ease-in-out, top 2s ease-in-out, opacity 1.5s ease-in-out'
+                        : 'opacity 1.5s ease-in-out',
                 }}
             >
                 {/* Realistic Sun (CSS Sphere) - Only visible when enhanced */}
@@ -366,8 +519,8 @@ const Promise1Growth = () => {
                     top: `${moonRenderPos.y}%`,
                     transform: `translate(-50%, -50%) scale(${moonScale})`,
                     zIndex: 15,
-                    opacity: moonOpacity,
-                    transition: isTransitioning ? 'left 2s ease-in-out, top 2s ease-in-out, transform 2s' : (moonPhase === 'full' ? 'none' : 'transform 0.1s, opacity 0.1s'),
+                    opacity: moonOpacity * entryProgress, // Combine gameplay opacity with entry fade
+                    transition: isTransitioning ? 'left 2s ease-in-out, top 2s ease-in-out, transform 2s' : (moonPhase === 'full' ? 'none' : 'transform 0.1s'),
                 }}
             >
                 {/* Moon Glow (increases with progress) */}
@@ -408,7 +561,7 @@ const Promise1Growth = () => {
                         left: '50%',
                         transform: 'translateX(-50%)',
                         fontFamily: "'Dancing Script', cursive",
-                        fontSize: '1rem',
+                        fontSize: '3rem',
                         color: '#e2e8f0',
                         whiteSpace: 'nowrap',
                         fontWeight: 600,
@@ -419,20 +572,28 @@ const Promise1Growth = () => {
                 </span>
             </div>
 
-            {/* Instruction if New Moon */}
-            {moonProgress < 20 && (
+            {/* Dynamic Proximity Text (Only when Sun is visible and active) */}
+            {sunVisible && moonPhase !== 'full' && !isTransitioning && (
                 <div style={{
                     position: 'absolute',
-                    bottom: '10%',
+                    bottom: '15%',
                     width: '100%',
                     textAlign: 'center',
-                    color: '#94a3b8',
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: '0.9rem',
+                    color: '#e2e8f0',
+                    fontFamily: "'Outfit', sans-serif",
+                    fontSize: '1.2rem',
                     pointerEvents: 'none',
-                    opacity: 0.7
+                    opacity: 0.8,
+                    textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                    transition: 'all 0.3s ease'
                 }}>
-                    Feed the moon with your light...
+                    {hasMoved ? (
+                        Math.sqrt(Math.pow(sunPos.x - 50, 2) + Math.pow(sunPos.y - 50, 2)) > 30
+                            ? "(be closer to me please🥺)"
+                            : "☺️"
+                    ) : (
+                        "Reach out to the moon..."
+                    )}
                 </div>
             )}
 
@@ -441,7 +602,45 @@ const Promise1Growth = () => {
                 ref={musicRef}
                 src="/mycutusbdaycountdown2026/music/promise1.mp3"
                 loop
+                muted={isMuted}
             />
+
+            {/* Themed Mute/Unmute Button */}
+            <button
+                onClick={toggleMute}
+                style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '50%',
+                    background: 'rgba(255, 255, 255, 0.1)', // Glassmorphism
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(251, 191, 36, 0.5)', // Gold border
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 15px rgba(251, 191, 36, 0.2)',
+                    transition: 'all 0.3s ease',
+                    zIndex: 200,
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                }}
+            >
+                {isMuted ? (
+                    <VolumeX size={24} color="#fbbf24" /> // Amber-400
+                ) : (
+                    <Volume2 size={24} color="#fbbf24" />
+                )}
+            </button>
         </div>
     );
 };
