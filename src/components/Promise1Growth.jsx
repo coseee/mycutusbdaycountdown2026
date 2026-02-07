@@ -40,6 +40,7 @@ const FloatingGlow = () => {
 
 const Promise1Growth = () => {
     const containerRef = useRef(null);
+    const musicRef = useRef(null);
     const { position: mousePosition, isActive: mouseActive } = useMousePosition(1); // Instant tracking
 
     // Animation states
@@ -56,6 +57,14 @@ const Promise1Growth = () => {
     // Spark/Sun position (follows mouse - this is HER)
     const [sunPos, setSunPos] = useState({ x: 50, y: 50 });
     const sunPosRef = useRef(sunPos);
+
+    // Play Promise 1 music on mount
+    useEffect(() => {
+        if (musicRef.current) {
+            musicRef.current.volume = 0.4;
+            musicRef.current.play().catch(e => console.log('Promise 1 audio failed:', e));
+        }
+    }, []);
 
     // Update Sun position based on mouse
     useEffect(() => {
@@ -429,12 +438,7 @@ const Promise1Growth = () => {
 
             {/* Promise 1 Specific Music */}
             <audio
-                ref={(el) => {
-                    if (el) {
-                        el.volume = 0.4;
-                        el.play().catch(e => console.log('Promise 1 audio failed:', e));
-                    }
-                }}
+                ref={musicRef}
                 src="/mycutusbdaycountdown2026/music/promise1.mp3"
                 loop
             />
