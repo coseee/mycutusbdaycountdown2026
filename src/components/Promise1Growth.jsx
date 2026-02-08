@@ -198,8 +198,8 @@ const Promise1Growth = ({ isMuted, toggleMute }) => {
                     // Max distance ~70. Factor 1.0 (Close) -> 0.4 (Far)
                     const distanceFactor = Math.max(0.4, 1 - (dist / 70));
 
-                    // Growth Rate
-                    const growth = 0.0625 * distanceFactor;
+                    // Growth Rate (Increased for faster progression ~40s to 1m45s)
+                    const growth = 0.18 * distanceFactor;
 
                     const newProg = Math.min(100, prev + absorbedCount * growth);
 

@@ -677,7 +677,7 @@ const IntroductionPage = ({ currentDate, onOpenPromise, onBackToStart, skipAnima
                         </h3>
 
                         {visibleDates.map((item, index) => {
-                            const isUnlocked = currentDate.getDate() >= item.day;
+                            const isUnlocked = currentDate >= getUnlockDate(item);
                             return (
                                 <div
                                     key={item.day}

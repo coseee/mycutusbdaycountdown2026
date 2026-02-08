@@ -57,24 +57,36 @@ function App() {
   const initialPromise = getInitialPromise();
 
   // Helper to validate unlock time for direct links
-  const isPromiseUnlocked = (promiseNum) => {
-    // START_DATE is Feb 7. Promise 1 is Feb 8 9pm.
-    // Simple check for now - can be expanded.
+  const isPromiseUnlocked = (promiseNum, dateToCheck) => {
+    const referenceDate = dateToCheck || new Date();
+
+    // Promise 1: Unlock at 9:00 PM on Feb 8th
     if (promiseNum === 1) {
-      const unlockDate = new Date(2026, 1, 8, 21, 0, 0); // Feb 8 9:00 PM
-      return new Date() >= unlockDate;
+      const unlockDate = new Date(2026, 1, 8, 21, 0, 0);
+      return referenceDate >= unlockDate;
     }
-    return true; // Future promises
+
+    // Promises 2-7: Unlock at 12:00 AM (Midnight) on their respective days
+    // P2 -> Feb 9, P3 -> Feb 10... P7 -> Feb 14
+    if (promiseNum >= 2 && promiseNum <= 7) {
+      const unlockDay = 7 + promiseNum;
+      const unlockDate = new Date(2026, 1, unlockDay, 0, 0, 0);
+      return referenceDate >= unlockDate;
+    }
+
+    return false; // Default to locked for invalid/future promises
   };
 
   // State Initialization
   // If valid promise param exists AND it is unlocked by date
-  const startUnlocked = initialPromise !== null && isPromiseUnlocked(initialPromise);
+  // OR if the event has started (Introduction Page becomes homepage)
+  const startUnlocked = (initialPromise !== null && isPromiseUnlocked(initialPromise, currentDate)) || !isPreEvent;
 
   const [isUnlocked, setIsUnlocked] = useState(startUnlocked);
   const [hasAnsweredYes, setHasAnsweredYes] = useState(startUnlocked);
   const [isMuted, setIsMuted] = useState(false);
-  const [activePromise, setActivePromise] = useState(initialPromise);
+  // Ensure we don't start on a locked promise (default to null if not fully unlocked)
+  const [activePromise, setActivePromise] = useState(startUnlocked ? initialPromise : null);
   const [isTransitioningPage, setIsTransitioningPage] = useState(false);
   const audioRef = useRef(null);
   const fadeIntervalRef = useRef(null);
@@ -99,7 +111,10 @@ function App() {
 
     if (audioRef.current) {
       audioRef.current.volume = 0.3; // Soft volume
-      audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+      audioRef.current.play().catch(e => {
+        console.log('Audio play failed (Autoplay blocked):', e);
+        setIsMuted(true); // Sync UI state if autoplay is blocked
+      });
     }
   };
 
@@ -144,6 +159,12 @@ function App() {
 
   // Handle opening a promise with transition logic
   const handleOpenPromise = (promiseNum) => {
+    // Security Check: Prevent opening if locked (even if UI allows it)
+    if (!isPromiseUnlocked(promiseNum, currentDate)) {
+      console.warn(`Attempted to open locked promise ${promiseNum}`);
+      return;
+    }
+
     // Clear any existing fade interval to prevent fighting
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
