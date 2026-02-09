@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap');
 
 @import "tailwindcss";
 
@@ -396,5 +396,204 @@ body {
   100% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
+  }
+}
+
+/* Promise 2 - Bed Animations */
+@keyframes screen-pulse {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 0.9;
+    box-shadow: 0 0 20px 8px rgba(96, 165, 250, 0.9);
+  }
+
+  100% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes flicker {
+  0% {
+    opacity: 1;
+  }
+
+  25% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  75% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ===== PROMISE 2 - HOME ANIMATIONS ===== */
+@keyframes rain-drop {
+  0% {
+    transform: translateY(-10vh);
+  }
+
+  100% {
+    transform: translateY(110vh);
+  }
+}
+
+@keyframes star-twinkle {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes candle-flicker {
+  0% {
+    transform: scaleY(1) scaleX(1) translateX(0);
+  }
+
+  33% {
+    transform: scaleY(1.06) scaleX(0.94) translateX(-0.5px);
+  }
+
+  66% {
+    transform: scaleY(0.94) scaleX(1.04) translateX(0.5px);
+  }
+
+  100% {
+    transform: scaleY(1.02) scaleX(0.98) translateX(0);
+  }
+}
+
+@keyframes warm-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 10px 4px rgba(251, 191, 36, 0.3);
+    opacity: 0.6;
+  }
+
+  50% {
+    box-shadow: 0 0 18px 8px rgba(251, 191, 36, 0.5);
+    opacity: 1;
+  }
+}
+
+@keyframes glass-drip {
+  0% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+
+  80% {
+    opacity: 0.3;
+  }
+
+  100% {
+    transform: translateY(20vh);
+    opacity: 0;
+  }
+}
+
+@keyframes hint-pulse {
+
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes leaf-blow {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 0.7;
+  }
+
+  50% {
+    transform: translate(40vw, 15vh) rotate(220deg) scale(0.8);
+    opacity: 0.5;
+  }
+
+  90% {
+    opacity: 0.3;
+  }
+
+  100% {
+    transform: translate(85vw, 30vh) rotate(480deg) scale(0.6);
+    opacity: 0;
+  }
+}
+
+@keyframes notif-drift {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 0.75;
+  }
+
+  25% {
+    transform: translateY(-5px) rotate(var(--notif-tilt, 2deg));
+    opacity: 0.7;
+  }
+
+  75% {
+    transform: translateY(-3px) rotate(calc(var(--notif-tilt, 2deg) * -0.5));
+    opacity: 0.65;
+  }
+
+  92% {
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: translateY(2px) rotate(calc(var(--notif-tilt, 2deg) * -1));
+    opacity: 0;
+  }
+}
+
+/* ===== FLOATING MEMORIES ANIMATIONS ===== */
+@keyframes fade-in-slow {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes hover-gentle {
+  0% {
+    margin-top: 0px;
+  }
+
+  100% {
+    margin-top: -15px;
   }
 }

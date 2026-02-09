@@ -53,12 +53,14 @@ const IntroductionPage = ({ currentDate, onOpenPromise, onBackToStart, skipAnima
 
     const allDates = [
         { date: 'Feb 8th', label: '#Promise 1', day: 8, promiseNum: 1 },
+        { date: 'Feb 9th', label: '#Promise 2', day: 9, promiseNum: 2 },
     ];
 
     // Helper to get the exact unlock date/time for a promise
     const getUnlockDate = (item) => {
         const targetDate = new Date(2026, 1, item.day); // Feb 1st is month 1
         if (item.promiseNum === 1) targetDate.setHours(21, 0, 0, 0); // 9 PM for Promise 1
+        else if (item.promiseNum === 2) targetDate.setHours(23, 0, 0, 0); // 11 PM (23:00) for Promise 2
         else targetDate.setHours(0, 0, 0, 0); // Midnight for others
         return targetDate;
     };

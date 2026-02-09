@@ -4,6 +4,7 @@ import Countdown from './components/Countdown';
 import ValentineQuestion from './components/ValentineQuestion';
 import IntroductionPage from './components/IntroductionPage';
 import Promise1Growth from './components/Promise1Growth';
+import Promise2Home from './components/Promise2Home';
 import { Heart, Sparkles, Volume2, VolumeX, ArrowLeft } from 'lucide-react';
 
 // Floating Hearts Background - Memoized to prevent re-render repositioning
@@ -66,9 +67,15 @@ function App() {
       return referenceDate >= unlockDate;
     }
 
-    // Promises 2-7: Unlock at 12:00 AM (Midnight) on their respective days
-    // P2 -> Feb 9, P3 -> Feb 10... P7 -> Feb 14
-    if (promiseNum >= 2 && promiseNum <= 7) {
+    // Promise 2: Unlock at 11:00 PM on Feb 9th
+    if (promiseNum === 2) {
+      const unlockDate = new Date(2026, 1, 9, 23, 0, 0);
+      return referenceDate >= unlockDate;
+    }
+
+    // Promises 3-7: Unlock at 12:00 AM (Midnight) on their respective days
+    // P3 -> Feb 10, P4 -> Feb 11... P7 -> Feb 14
+    if (promiseNum >= 3 && promiseNum <= 7) {
       const unlockDay = 7 + promiseNum;
       const unlockDate = new Date(2026, 1, unlockDay, 0, 0, 0);
       return referenceDate >= unlockDate;
@@ -107,7 +114,7 @@ function App() {
   // Function to play background music
   // Function to play background music
   const playBackgroundMusic = () => {
-    if (activePromise === 1) return; // Never play background music in Promise 1
+    if (activePromise === 1 || activePromise === 2) return; // Never play background music in Promise 1 or 2
 
     if (audioRef.current) {
       audioRef.current.volume = 0.3; // Soft volume
@@ -121,8 +128,8 @@ function App() {
   // Manage Background Music: Play in Intro, Pause in Promise 1
   useEffect(() => {
     if (hasAnsweredYes) {
-      if (activePromise === 1) {
-        // Pause Intro music if we are in Promise 1 (Deep Link or Navigation)
+      if (activePromise === 1 || activePromise === 2) {
+        // Pause Intro music if we are in Promise 1 or 2 (Deep Link or Navigation)
         if (audioRef.current) audioRef.current.pause();
       } else {
         // For Intro or other promises, ensure global music is playing
@@ -171,11 +178,12 @@ function App() {
       fadeIntervalRef.current = null;
     }
 
-    if (promiseNum === 1) {
-      // Shorten audio fade for a snappier transition
+    if (promiseNum === 1 || promiseNum === 2) {
+      // Cinematic Audio Fade for Promise 1 & 2
       if (audioRef.current) {
         const startVolume = audioRef.current.volume;
-        const fadeDuration = 1500; // 1.5 seconds
+        // Promise 2 gets a slower, more dramatic fade (3s) vs Promise 1 (1.5s)
+        const fadeDuration = promiseNum === 2 ? 3000 : 1500;
         const intervalTime = 50;
         const steps = fadeDuration / intervalTime;
         const volumeStep = startVolume / steps;
@@ -195,13 +203,12 @@ function App() {
             }
 
             // Sync navigation with visual fade
-            setActivePromise(1);
+            setActivePromise(promiseNum);
             setIsTransitioningPage(false); // Fade in the new page
-            // Volume will be reset by useEffect when navigating AWAY from Promise 1
           }
         }, intervalTime);
       } else {
-        setActivePromise(1);
+        setActivePromise(promiseNum);
         setIsTransitioningPage(false);
       }
     } else {
@@ -423,6 +430,9 @@ function App() {
           ) : activePromise === 1 ? (
             /* Promise 1 - The Promise of Growth */
             <Promise1Growth isMuted={isMuted} toggleMute={toggleMute} />
+          ) : activePromise === 2 ? (
+            /* Promise 2 - The Promise of Home */
+            <Promise2Home isMuted={isMuted} toggleMute={toggleMute} />
           ) : (
             /* Introduction Page - After saying Yes */
             <IntroductionPage
@@ -467,7 +477,7 @@ function App() {
 
       {/* Mute/Unmute Button - Global (Hidden in Promise 1) */}
       {
-        hasAnsweredYes && activePromise !== 1 && (
+        hasAnsweredYes && activePromise !== 1 && activePromise !== 2 && (
           <button
             onClick={toggleMute}
             style={{
