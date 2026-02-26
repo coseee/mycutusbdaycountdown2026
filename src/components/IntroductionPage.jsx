@@ -54,6 +54,7 @@ const IntroductionPage = ({ currentDate, onOpenPromise, onBackToStart, skipAnima
     const allDates = [
         { date: 'Feb 8th', label: '#Promise 1', day: 8, promiseNum: 1 },
         { date: 'Feb 9th', label: '#Promise 2', day: 9, promiseNum: 2 },
+        { date: 'Feb 10th', label: '#Promise 3', day: 10, promiseNum: 3 },
     ];
 
     // Helper to get the exact unlock date/time for a promise
