@@ -6,6 +6,7 @@ import IntroductionPage from './components/IntroductionPage';
 import Promise1Growth from './components/Promise1Growth';
 import Promise2Home from './components/Promise2Home';
 import Promise3Adventure from './components/Promise3Adventure';
+import Promise4LittleThings from './components/Promise4LittleThings';
 import { Heart, Sparkles, Volume2, VolumeX, ArrowLeft } from 'lucide-react';
 
 // Floating Hearts Background - Memoized to prevent re-render repositioning
@@ -115,7 +116,7 @@ function App() {
   // Function to play background music
   // Function to play background music
   const playBackgroundMusic = () => {
-    if (activePromise === 1 || activePromise === 2 || activePromise === 3) return; // Never play background music in Promise 1, 2, or 3
+    if (activePromise === 1 || activePromise === 2 || activePromise === 3 || activePromise === 4) return; // Never play background music in Promise 1, 2, 3, or 4
 
     if (audioRef.current) {
       audioRef.current.volume = 0.3; // Soft volume
@@ -129,7 +130,7 @@ function App() {
   // Manage Background Music: Play in Intro, Pause in Promise 1
   useEffect(() => {
     if (hasAnsweredYes) {
-      if (activePromise === 1 || activePromise === 2 || activePromise === 3) {
+      if (activePromise === 1 || activePromise === 2 || activePromise === 3 || activePromise === 4) {
         // Pause Intro music if we are in Promise 1 or 2 (Deep Link or Navigation)
         if (audioRef.current) audioRef.current.pause();
       } else {
@@ -154,7 +155,7 @@ function App() {
     setIsMuted(nextMuted);
 
     // Only control background audio when NOT in a promise with its own music
-    if (audioRef.current && activePromise !== 1 && activePromise !== 2 && activePromise !== 3) {
+    if (audioRef.current && activePromise !== 1 && activePromise !== 2 && activePromise !== 3 && activePromise !== 4) {
       audioRef.current.muted = nextMuted;
       if (!nextMuted && audioRef.current.paused) {
         audioRef.current.play().catch(e => console.log('Play on unmute failed', e));
@@ -179,7 +180,7 @@ function App() {
       fadeIntervalRef.current = null;
     }
 
-    if (promiseNum === 1 || promiseNum === 2 || promiseNum === 3) {
+    if (promiseNum === 1 || promiseNum === 2 || promiseNum === 3 || promiseNum === 4) {
       // Cinematic Audio Fade for Promise 1 & 2
       if (audioRef.current) {
         const startVolume = audioRef.current.volume;
@@ -437,6 +438,9 @@ function App() {
           ) : activePromise === 3 ? (
             /* Promise 3 - The Promise of Adventure */
             <Promise3Adventure isMuted={isMuted} toggleMute={toggleMute} />
+          ) : activePromise === 4 ? (
+            /* Promise 4 - The Promise of Little Things */
+            <Promise4LittleThings isMuted={isMuted} toggleMute={toggleMute} />
           ) : (
             /* Introduction Page - After saying Yes */
             <IntroductionPage
@@ -478,7 +482,7 @@ function App() {
         loop
         preload="auto"
         onPlay={() => {
-          if (activePromise === 1 || activePromise === 2 || activePromise === 3) {
+          if (activePromise === 1 || activePromise === 2 || activePromise === 3 || activePromise === 4) {
             audioRef.current?.pause();
           }
         }}
@@ -486,7 +490,7 @@ function App() {
 
       {/* Mute/Unmute Button - Global (Hidden in Promise 1) */}
       {
-        hasAnsweredYes && activePromise !== 1 && activePromise !== 2 && activePromise !== 3 && (
+        hasAnsweredYes && activePromise !== 1 && activePromise !== 2 && activePromise !== 3 && activePromise !== 4 && (
           <button
             onClick={toggleMute}
             style={{
@@ -554,7 +558,7 @@ function App() {
             }}
           >
             <ArrowLeft size={20} />
-            Back to Vachan
+            7 Vachans
           </button>
         )
       }

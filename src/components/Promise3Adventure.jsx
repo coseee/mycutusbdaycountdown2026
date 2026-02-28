@@ -12,13 +12,13 @@ import { useMousePosition } from '../hooks/useMousePosition';
 // │  logged to console when you drop them.                  │
 // │  Set to false for the final experience.                 │
 // └─────────────────────────────────────────────────────────┘
-const DEV_MODE = false;
+const DEV_MODE = true;
 
 const adventureYears = [
     {
         year: 2019,
         caption: 'Where it all began — Trips, Concerts, Food & Adventures 🎵✈️🍕⛰️',
-        captionPos: { x: 16, y: 21 },
+        captionPos: { x: 19, y: 16 },
         phase: 1,
         photos: [
             { file: '1.jpeg', x: 6, y: 71, rotation: -5 },
@@ -31,7 +31,7 @@ const adventureYears = [
         caption: '',
         phase: 1,
         photos: [
-            { file: '1.jpeg', x: 30, y: 77, rotation: 6 },
+            { file: '1.jpeg', x: 31, y: 78, rotation: 6 },
             { file: '2.jpeg', x: 21, y: 84, rotation: -8 },
             { file: '3.jpeg', x: 28, y: 93, rotation: 3 },
         ],
@@ -80,15 +80,15 @@ const adventureYears = [
     {
         year: 2025,
         caption: "The distance's still there, but loving harder than ever — till forever.",
-        captionPos: { x: 85, y: 22 },
+        captionPos: { x: 83, y: 22 },
         phase: 3,
         photos: [
-            { file: '1.jpeg', x: 69, y: 8, rotation: -8 },
-            { file: '2.jpeg', x: 66, y: 23, rotation: 6 },
-            { file: '3.jpeg', x: 59, y: 16, rotation: 11 },
-            { file: '1.jpeg', x: 83, y: 34, rotation: -5, srcYear: 2026 },
+            { file: '1.jpeg', x: 73, y: 9, rotation: -8 },
+            { file: '2.jpeg', x: 70, y: 33, rotation: 6 },
+            { file: '3.jpeg', x: 61, y: 22, rotation: 11 },
+            { file: '1.jpeg', x: 84, y: 33, rotation: -5, srcYear: 2026 },
             { file: '2.jpeg', x: 94, y: 9, rotation: 9, srcYear: 2026 },
-            { file: '3.jpeg', x: 93, y: 33, rotation: -3, srcYear: 2026 },
+            { file: '3.jpeg', x: 93, y: 32, rotation: -3, srcYear: 2026 },
         ],
     },
     {
@@ -911,11 +911,13 @@ const FinaleScroll = ({ visible, onComplete }) => {
     const [text4, setText4] = useState(false);
 
     // DEV: draggable + resizable
-    const [scrollPos, setScrollPos] = useState({ x: 84, y: 65 });
-    const [scrollWidth, setScrollWidth] = useState(567);
+    const [scrollPos, setScrollPos] = useState({ x: 85, y: 63 });
+    const [scrollWidth, setScrollWidth] = useState(584);
     const [dragging, setDragging] = useState(false);
+    const [resizing, setResizing] = useState(false);
     const scrollRef = useRef(null);
     const dragOffset = useRef({ x: 0, y: 0 });
+    const resizeStart = useRef({ mouseX: 0, mouseY: 0, startWidth: 0 });
 
     useEffect(() => {
         if (!visible) return;
@@ -963,22 +965,37 @@ const FinaleScroll = ({ visible, onComplete }) => {
         return () => { window.removeEventListener('mousemove', handleMove); window.removeEventListener('mouseup', handleUp); };
     }, [dragging, scrollPos]);
 
-    // DEV scroll-to-resize
-    const handleWheel = (e) => {
+    // DEV corner-drag resize
+    const handleResizeDown = (e) => {
         if (!DEV_MODE) return;
         e.preventDefault();
-        setScrollWidth(w => {
-            const nw = Math.max(300, Math.min(900, w - e.deltaY * 0.5));
-            console.log(`📜 Scroll width: ${Math.round(nw)}px`);
-            return nw;
-        });
+        e.stopPropagation();
+        resizeStart.current = { mouseX: e.clientX, mouseY: e.clientY, startWidth: scrollWidth };
+        setResizing(true);
     };
+    useEffect(() => {
+        if (!resizing) return;
+        const handleMove = (e) => {
+            const dx = e.clientX - resizeStart.current.mouseX;
+            const dy = e.clientY - resizeStart.current.mouseY;
+            // Diagonal distance — positive when dragging outward (down-right)
+            const diag = (dx + dy) / Math.SQRT2;
+            const nw = Math.max(300, Math.min(900, resizeStart.current.startWidth + diag * 2));
+            setScrollWidth(nw);
+        };
+        const handleUp = () => {
+            setResizing(false);
+            console.log(`📜 Scroll width: ${Math.round(scrollWidth)}px`);
+        };
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => { window.removeEventListener('mousemove', handleMove); window.removeEventListener('mouseup', handleUp); };
+    }, [resizing, scrollWidth]);
 
     return (
         <div
             ref={scrollRef}
             onMouseDown={handleMouseDown}
-            onWheel={handleWheel}
             style={{
                 position: 'absolute',
                 left: `${scrollPos.x}%`,
@@ -1000,8 +1017,25 @@ const FinaleScroll = ({ visible, onComplete }) => {
                     color: '#999', whiteSpace: 'nowrap',
                     background: 'rgba(255,255,255,0.8)', padding: '2px 6px', borderRadius: '3px',
                 }}>
-                    scroll · ({Math.round(scrollPos.x)}, {Math.round(scrollPos.y)}) · {Math.round(scrollWidth)}px — scroll to resize
+                    scroll · ({Math.round(scrollPos.x)}, {Math.round(scrollPos.y)}) · {Math.round(scrollWidth)}px — drag corner to resize
                 </div>
+            )}
+            {/* DEV resize handle (bottom-right corner) */}
+            {DEV_MODE && visible && (
+                <div
+                    onMouseDown={handleResizeDown}
+                    style={{
+                        position: 'absolute',
+                        bottom: '-4px',
+                        right: '-4px',
+                        width: '20px',
+                        height: '20px',
+                        cursor: 'nwse-resize',
+                        zIndex: 50,
+                        background: 'linear-gradient(135deg, transparent 50%, rgba(139, 90, 43, 0.6) 50%)',
+                        borderRadius: '0 0 4px 0',
+                    }}
+                />
             )}
             {/* Scroll background */}
             <div style={{
@@ -1557,7 +1591,7 @@ const Promise3Adventure = ({ isMuted, toggleMute }) => {
                     message="I don't know if you remember this, but I got you that gajra and earrings when I went to Pune, from the Dagdusheth Ganpati Mandir🥰"
                     initialX={53}
                     initialY={85}
-                    visible={chestsVisible}
+                    visible={openedChests.has(3)}
                 />
                 <DraggableHeart
                     id="pink"
@@ -1565,7 +1599,7 @@ const Promise3Adventure = ({ isMuted, toggleMute }) => {
                     message="You got this homemade Rajma Chawal specially for me because I mentioned I have never had it, haha.😋"
                     initialX={17}
                     initialY={86}
-                    visible={chestsVisible}
+                    visible={openedChests.has(1)}
                 />
 
                 {/* Instruction hint */}
