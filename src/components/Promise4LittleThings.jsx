@@ -454,11 +454,11 @@ const Promise4LittleThings = ({ isMuted, toggleMute }) => {
         scheduleTimer(() => setRainVisible(false), 300);
         scheduleTimer(() => setCounterVisible(false), 300);
         scheduleTimer(() => setBackdropVisible(true), 1000);
-        scheduleTimer(() => setPromiseTitle(true), 1500);
-        scheduleTimer(() => setPromiseText1(true), 5000);
-        scheduleTimer(() => setPromiseText2(true), 9000);
-        scheduleTimer(() => setPromiseText3(true), 13000);
-        scheduleTimer(() => setPromiseText4(true), 17000);
+        scheduleTimer(() => setPromiseText1(true), 2000);
+        scheduleTimer(() => setPromiseText2(true), 6000);
+        scheduleTimer(() => setPromiseText3(true), 10000);
+        scheduleTimer(() => setPromiseText4(true), 14000);
+        scheduleTimer(() => setPromiseTitle(true), 18000);
 
         return () => clearAllTimers();
     }, [phase, effectTrigger]);
@@ -565,7 +565,7 @@ const Promise4LittleThings = ({ isMuted, toggleMute }) => {
             </div>
 
 
-            {/* ─── Promise Phase: Title (above video) ─── */}
+            {/* ─── Promise Phase: Title (appears last, at top) ─── */}
             {phase === 'promise' && (
                 <h2 style={{
                     position: 'absolute',
@@ -702,7 +702,7 @@ const Promise4LittleThings = ({ isMuted, toggleMute }) => {
             {new URLSearchParams(window.location.search).has('dev') && (() => {
                 const activeTarget = phase === 'intro' ? 'intro'
                     : phase === 'rain' ? (rainText ? 'rainText' : 'rain')
-                    : 'promise';
+                        : 'promise';
                 return (
                     <div style={{
                         position: 'fixed',
