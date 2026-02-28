@@ -12,7 +12,7 @@ import { useMousePosition } from '../hooks/useMousePosition';
 // │  logged to console when you drop them.                  │
 // │  Set to false for the final experience.                 │
 // └─────────────────────────────────────────────────────────┘
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 const adventureYears = [
     {
